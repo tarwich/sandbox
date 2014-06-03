@@ -15,10 +15,10 @@
 		$("#main").removeClass(hoverClasses(this));
 	};
 	// Need interval in order ot update new items
-	$("#main")
-		.on("mouseenter", ".button:has(.row_key)", highlight)
-		.on("mouseleave", ".button:has(.row_key)", unhighlight)
-	;
+	if(window.clearInterval(window["highlightInterval"]||0));
+	window.highlightInterval = window.setInterval(function() {
+		$(".button:has(.row_key)").off("mouseenter mouseleave").hover(highlight, unhighlight);
+	}, 1000);
 
 	var style = $("#stores .storeRow").map(function(i,a) { 
 		return "#main."+a.id.replace(/^row/, "hover") + " #"+a.id; 
@@ -31,10 +31,14 @@
 	if(window["buttonInterval"]) window.clearInterval(window.buttonInterval);
 	window.buttonInterval = window.setInterval(function() {
 		$("#trapsButton,#gatherButton,#build_trap").not(".disabled").click();
+		// - Keep 5 torches
+		if($("#row_torch>.row_val").text() < 5) $("#build_torch").click();
 		// - events -----------------------------------------
 		// Ruined traps
-		$("#event:has(.eventTitle:contains(A Ruined Trap)) #track,#end").click()
+		$("#event:has(.eventTitle:contains(A Ruined Trap)) #track,#end").click();
 		// Noises
-		$("#event:has(.eventTitle:contains(Noises)) #ignore").click()
-	}, 350);
+		$("#event:has(.eventTitle:contains(Noises)) #ignore").click();
+		// Mysterious Wanderer
+		$("#event:has(.eventTitle:contains(Mysterious Wanderer)) #deny").click();
+	}, 500);
 });})(jQuery);
