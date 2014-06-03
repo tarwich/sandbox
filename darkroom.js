@@ -1,13 +1,21 @@
 
-jQuery(document).readr(function($) {
+(function($) {$(function() {
+	var hoverClasses = function(self) {
+		return $(self).find(".row_key").map(function(i,a) { 
+			return "hover_"+a.innerText.replace(/\W+/g, '-');
+		}).toArray().join(" ")
+	};
 	var highlight = function() {
-		$(this).closest("#main").addClass($(this).find(".row_key").map(function(i,a) { return "hover_"+a.innerText; }).toArray().join(" "));
+		$("#main").addClass(hoverClasses(this));
 	};
 	var unhighlight = function() {
-		$(this).closest("#main").removeClass($(this).find(".row_key").map(function(i,a) { return "hover_"+a.innerText; }).toArray().join(" "));
+		$("#main").removeClass(hoverClasses(this));
 	};
-	$(".button:has(.row_key)").off("mouseenter", highlight).on("mouseenter", highlight);
+	$(".button:has(.row_key)").hover(highlight, unhighlight);
 
-	// $("#stores .storeRow > .row_key").map(function(i,a) { return a.innerText.replace(/\W+/g, "_").replace(function(t) { "#}) })
+	var style = $("#stores .storeRow").map(function(i,a) { 
+		return "#main."+a.id.replace(/^row/, "hover") + " #"+a.id; 
+	}).toArray().join(", ")+" { background-color: #fee; }";
+	$("head").append("<style type='text/css'>"+style+"</style>")
 	
-});
+});})(jQuery);
