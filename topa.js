@@ -2,10 +2,12 @@
 	// Initialize the namespace
 	var ns = window[NS] || (window[NS] = {});
 	
-	try { document.addEventListener("DOMContentLoaded", ns.ready); }
-	catch(ex) {
-		document.attachEvent("onreadystatechange", ns.readyStateChange);
-	}
+	ns.initialize = function() {
+		try { document.addEventListener("DOMContentLoaded", ns.ready); }
+		catch(ex) {
+			document.attachEvent("onreadystatechange", ns.readyStateChange);
+		}
+	};
 	
 	ns.ready = function() {
 		console.log("READY"); 
@@ -17,6 +19,8 @@
 			ns.ready();
 		}
 	};
+	
+	ns.initialize();
 })("topa-extensions");
 
 // (function(callback) {
