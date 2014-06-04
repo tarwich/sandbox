@@ -1,4 +1,4 @@
-
+// Well it's not perfect, but it's here
 (function($) {$(function() {
 	// --------------------------------------------------
 	// hover
@@ -8,8 +8,8 @@
 			return "hover_"+a.innerText.replace(/\W+/g, '-');
 		}).toArray().join(" ")
 	};
-	var highlight = function() {
-		$("#main").addClass(hoverClasses(this));
+	var highlight = function() { 
+		$("#main").addClass(hoverClasses(this)); 
 	};
 	var unhighlight = function() {
 		$("#main").removeClass(hoverClasses(this));
@@ -17,9 +17,11 @@
 	// Need interval in order ot update new items
 	if(window.clearInterval(window["highlightInterval"]||0));
 	window.highlightInterval = window.setInterval(function() {
+		// Highlight required items on mouseover
 		$(".button:has(.row_key)").off("mouseenter mouseleave").hover(highlight, unhighlight);
 	}, 1000);
-
+	
+	// Add a stylesheet for the highlighting 
 	var style = $("#stores .storeRow").map(function(i,a) { 
 		return "#main."+a.id.replace(/^row/, "hover") + " #"+a.id; 
 	}).toArray().join(", ")+" { background-color: #fee; }";
@@ -30,6 +32,7 @@
 	// --------------------------------------------------
 	if(window["buttonInterval"]) window.clearInterval(window.buttonInterval);
 	window.buttonInterval = window.setInterval(function() {
+		// Auto-harvest. Best if on the town tab, not the room tab
 		$("#trapsButton,#gatherButton,#build_trap").not(".disabled").click();
 		// - Keep 5 torches
 		if($("#row_torch>.row_val").text() < 5) $("#build_torch").click();
