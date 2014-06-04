@@ -3,6 +3,14 @@
 	// --------------------------------------------------
 	// hover
 	// --------------------------------------------------
+	// Add a stylesheet for the highlighting 
+	var $style = $("<style type='text/css'></style>").appendTo("head");
+	var updateStyles = function() {
+		var css = $("#stores .storeRow").map(function(i,a) { 
+			return "#main."+a.id.replace(/^row/, "hover") + " #"+a.id; 
+		}).toArray().join(", ")+" { background-color: #fee; }";
+		if(css != $style.html()) $style.html(css);
+	};
 	var hoverClasses = function(self) {
 		return $(self).find(".row_key").map(function(i,a) { 
 			return "hover_"+a.innerText.replace(/\W+/g, '-');
@@ -10,22 +18,14 @@
 	};
 	var highlight = function() { 
 		$("#main").addClass(hoverClasses(this)); 
+		updateStyles();
 	};
 	var unhighlight = function() {
 		$("#main").removeClass(hoverClasses(this));
 	};
 	// Need interval in order ot update new items
-	if(window.clearInterval(window["highlightInterval"]||0));
-	window.highlightInterval = window.setInterval(function() {
-		// Highlight required items on mouseover
-		$(".button:has(.row_key)").off("mouseenter mouseleave").hover(highlight, unhighlight);
-	}, 1000);
-	
-	// Add a stylesheet for the highlighting 
-	var style = $("#stores .storeRow").map(function(i,a) { 
-		return "#main."+a.id.replace(/^row/, "hover") + " #"+a.id; 
-	}).toArray().join(", ")+" { background-color: #fee; }";
-	$("head").append("<style type='text/css'>"+style+"</style>")
+	$(document).on("mouseenter", ".button:has(.row_key)", highlight);
+	$(document).on("mouseleave", ".button:has(.row_key)", unhighlight);
 
 	// --------------------------------------------------
 	// click buttons
