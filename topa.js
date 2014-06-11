@@ -63,7 +63,7 @@
 			url  : url,
 			title: $this.attr("caption") || "Enter child information",
 			dialogReturnValueCallback: function() { 
-				$("#manual-refresh").click(); 
+				$("#ManualRefresh").click(); 
 			},
 		});
 		
