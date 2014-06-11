@@ -14,7 +14,10 @@
 			// Create a document.ready function
 			$(function() {
 				// Activate all a[function] nodes
-				$("a[function]").each(function() {
+				$("a[function]")
+				// Remove any webparts that are being designed
+				.not("body .ms-WPBorder a[function]")
+				.each(function() {
 					var $node = $(this);
 					// Make sure the node has a pound link for IE8
 					$node.attr("href", "#");
@@ -34,11 +37,12 @@
 	// --------------------------------------------------
 	ns.function_add_child = function() {
 		var $this = $(this);
+		var href = $this.prop("ownerDocument").location.href;
 		
 		// Get data from the URI
-		$this.prop("baseURI").replace(/\?(.*?)=(.*?)(&|$)/g, function(a,b,c) {$this[b] = c; });
+		href.replace(/\?(.*?)=(.*?)(&|$)/g, function(a,b,c) {$this[b] = c; });
 		// Get the base url
-		var baseURL = $this.prop("baseURI").match(/.*?\/Lists(?=\/)/)[0];
+		var baseURL = href.match(/.*?\/Lists(?=\/)/)[0];
 		var url = [baseURL,"/",$this.attr("list"),"/NewForm.aspx?",$this.attr("child_column"),"=",$this.ID].join("");
 		
 		// Wait for the iFrame to show up
@@ -46,7 +50,7 @@
 			$(node).load(function() {
 				var $document = $(this.contentDocument);
 				// Process all the URI information for the child document
-				$document.prop("baseURI").replace(/\?(.*?)=(.*?)(&|$)/g, function(a, b, c) {
+				$document.prop("location").href.replace(/\?(.*?)=(.*?)(&|$)/g, function(a, b, c) {
 					// Set the value of this input element
 					$document.find("[title="+b+"]").val(c)
 					// Hide the input field
@@ -58,15 +62,18 @@
 		SP.UI.ModalDialog.showModalDialog({
 			url  : url,
 			title: $this.attr("caption") || "Enter child information",
+			dialogReturnValueCallback: function() { 
+				$("#manual-refresh").click(); 
+			},
 		});
 		
 	};
-		
+			
 	// --------------------------------------------------
 	// waitFor
 	// --------------------------------------------------
-	// Returns a Promise of sorts when the selector is 
-	// found. Selector should not be a jQuery object, 
+	// Returns a Promise of sorts for when the selector
+	// is found. Selector should not be a jQuery object, 
 	// because since 1.7 it's impossible to rer[]un a 
 	// jQuery selector.
 	ns.waitFor = function(selector) {
