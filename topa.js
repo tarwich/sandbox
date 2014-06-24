@@ -7,7 +7,7 @@
 	// --------------------------------------------------
 	ns.initialize = function() {
 		// Add jQuery to the document
-		if(!jQuery) document.head.appendChild(document.createElement("script")).src = "//ajax.googleapis.com/ajax/libs/jquery/1.6.0/jquery.min.js";
+		if(!window["jQuery"]) document.head.appendChild(document.createElement("script")).src = "//ajax.googleapis.com/ajax/libs/jquery/1.6.0/jquery.min.js";
 		
 		// Wait for jQuery to be available
 		ns.waitFor(function() { return window.jQuery; }).then(function($) {
