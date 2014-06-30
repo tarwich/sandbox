@@ -1,6 +1,9 @@
 (function(NS, init) {
 	// Initialize the namespace
 	ns = window[NS] || (window[NS] = {});
+	ns.context = null; // SP.ClientContext
+	ns.web     = null; // SP.Web
+	ns.lists   = null; // SP.ListCollection
 	
 	// --------------------------------------------------
 	// initialize
@@ -8,9 +11,16 @@
 	ns.initialize = function() {
 		// Add jQuery to the document
 		if(!window["jQuery"]) document.head.appendChild(document.createElement("script")).src = "//ajax.googleapis.com/ajax/libs/jquery/1.6.0/jquery.min.js";
+		// Load the ClientContext library
+		SP.SOD.executeFunc("sp.js", "SP.ClientContext");
 		
-		// Wait for jQuery to be available
-		ns.waitFor(function() { return window.jQuery; }).then(function($) {
+		// Wait for jQuery and SP.ClientContext to be available
+		ns.waitFor(function() { return (window.jQuery && SP.ClientContext) ? jQuery : false; }).then(function($) {
+			// Get big SharePoint objects
+			ns.context = SP.ClientContext.get_current(); // context
+			ns.web     = ns.context.get_web();           // web
+			ns.lists   = ns.web.get_lists();             // lists
+			
 			// Create a document.ready function
 			$(function() {
 				// Activate all a[function] nodes
@@ -33,40 +43,81 @@
 	};
 	
 	// --------------------------------------------------
+	// getList
+	// --------------------------------------------------
+	ns.getList = function(listID) {
+		ns.context.get
+	};
+	
+	// --------------------------------------------------
 	// function_add_child
 	// --------------------------------------------------
 	ns.function_add_child = function() {
 		var $this = $(this);
-		var href = $this.prop("ownerDocument").location.href;
 		
 		// Get data from the URI
-		href.replace(/\?(.*?)=(.*?)(&|$)/g, function(a,b,c) {$this[b] = c; });
-		// Get the base url
-		var baseURL = href.match(/.*?\/Lists(?=\/)/)[0];
-		var url = [baseURL,"/",$this.attr("list"),"/NewForm.aspx?",$this.attr("child_column"),"=",$this.ID].join("");
+		$this.prop("ownerDocument").location.href.replace(/\?(.*?)=(.*?)(&|$)/g, 
+			function(a,b,c) {$this[b] = c; });
 		
-		// Wait for the iFrame to show up
-		ns.waitFor("iframe.ms-dlgFrame").then(function(node) {
-			$(node).load(function() {
-				var $document = $(this.contentDocument);
-				// Process all the URI information for the child document
-				$document.prop("location").href.replace(/\?(.*?)=(.*?)(&|$)/g, function(a, b, c) {
-					// Set the value of this input element
-					$document.find("[title="+b+"]").val(c)
-					// Hide the input field
-					.closest("tr").hide();
+		ns.spLoad(ns.lists.getByTitle($this.attr("list"))).then(function(list) {
+			url = ns.template("{url}?{child_column}={id}", $.extend($this, {
+				url: list.get_defaultNewFormUrl(),
+				id : $this.ID,
+			}));
+			
+			// Wait for the iFrame to show up
+			ns.waitFor("iframe.ms-dlgFrame").then(function(node) {
+				$(node).load(function() {
+					var $document = $(this.contentDocument);
+					// Process all the URI information for the child document
+					$document.prop("location").href.replace(/\?(.*?)=(.*?)(&|$)/g, function(a, b, c) {
+						// Set the value of this input element
+						$document.find("[title="+b+"]").val(c)
+						// Hide the input field
+						.closest("tr").hide();
+					});
 				});
 			});
+			
+			SP.UI.ModalDialog.showModalDialog({
+				url  : url,
+				title: $this.attr("caption") || "Enter child information",
+				dialogReturnValueCallback: function() { 
+					$("#ManualRefresh").click(); 
+				},
+			});
 		});
+	};
+	
+	// --------------------------------------------------
+	// spLoad
+	// --------------------------------------------------
+	ns.spLoad = function(thingToLoad) {
+		var promise = new ns.Promise();
 		
-		SP.UI.ModalDialog.showModalDialog({
-			url  : url,
-			title: $this.attr("caption") || "Enter child information",
-			dialogReturnValueCallback: function() { 
-				$("#ManualRefresh").click(); 
-			},
+		ns.context.load(thingToLoad);
+		ns.context.executeQueryAsync(function() { promise.resolve(thingToLoad); });
+		
+		return promise;
+	};
+	
+	// --------------------------------------------------
+	// template
+	// --------------------------------------------------
+	ns.template = function(text, context) {
+		return text.replace(/\{(.*?)\}/g, function(a,key) {
+			return context[key] || (context.attr?context.attr(key):false);
 		});
+	};
+	
+	// --------------------------------------------------
+	// url
+	// --------------------------------------------------
+	ns.url = function(path) {
+		// Memoize document.origin
+		var origin = ns.origin || (ns.origin = document.location.href.split(ns.context.get_url())[0]);
 		
+		return [origin, path].join("");
 	};
 			
 	// --------------------------------------------------
@@ -74,21 +125,10 @@
 	// --------------------------------------------------
 	// Returns a Promise of sorts for when the selector
 	// is found. Selector should not be a jQuery object, 
-	// because since 1.7 it's impossible to rer[]un a 
+	// because since 1.7 it's impossible to rerun a 
 	// jQuery selector.
 	ns.waitFor = function(selector) {
-		var promise; promise = {
-			callbacks: [],
-			then: function(callback) { 
-				this.callbacks.push(callback); 
-				return this; 
-			},
-			resolve: function(payload) {
-				for(var i=0, iMax=this.callbacks.length; i<iMax; ++i)
-					this.callbacks[i](payload);
-			},
-		};
-		
+		var promise = new ns.Promise();
 		// If the selector is a function, then use that function as the test
 		if(typeof(selector) == "function") test = selector;
 		// If the selector isn't a function, then use a function that tests a jQuery selector
@@ -106,6 +146,35 @@
 		}, 1);
 		return promise;
 	};
+	
+	// --------------------------------------------------
+	// Promise
+	// --------------------------------------------------
+	ns.Promise = (function() {
+		function Promise() {
+			this.callbacks = [];
+			this.resolved = false;
+			this.value = null;
+		};
+		
+		Promise.as = function(value) { return new Promise().resolve(value); };
+		
+		Promise.prototype.resolve = function(value) {
+			this.value = value;
+			this.resolved = true;
+			for(var i=0, iMax=this.callbacks.length; i<iMax; ++i)
+				this.value = this.callbacks.pop()(this.value)||this.value;
+			return this;
+		};
+		
+		Promise.prototype.then = function(callback) {
+			this.callbacks.push(callback);
+			if(this.resolved) this.resolve(this.value);
+			return this;
+		};
+		
+		return Promise;
+	})();
 	
 	ns.initialize();
 })("topa-extensions");
