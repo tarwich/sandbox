@@ -263,6 +263,8 @@
 					.css({paddingTop: this.height()/2})
 					.text("Loading...")
 				)
+				// Mute events for container
+				.on("mousedown mouseup click", function(ev) {ev.preventDefault(); ev.stopImmediatePropagation();})
 			);
 			// Shift the text up by half height
 			$text.css({paddingTop: parseInt($text.css("paddingTop"), 10) - $text.height()/2});
