@@ -29,7 +29,7 @@
 				.not("body .ms-WPBorder a[function]")
 				.each(function() {
 					var $node = $(this);
-					// Make sure the node has a pound link for IE8
+					// Make sure the node has a hash link for IE8
 					$node.attr("href", "#");
 					// Change the function from foo to function_foo
 					functionName = ["function_", $node.attr("function")].join("");
@@ -52,20 +52,18 @@
 	// --------------------------------------------------
 	// function_add_child
 	// --------------------------------------------------
-	ns.function_add_child = function() {
-		var $this = $(this);
-		
-		// Get data from the URI
-		$this.prop("ownerDocument").location.href.replace(/\?(.*?)=(.*?)(&|$)/g, 
-			function(a,b,c) {$this[b] = c; });
+	ns.function_add_child = function(ev) {
+		// Don't let the browser handle the event
+		ev.preventDefault();
+		// Wrap 'this' and inject data from the URI
+		var $this = ns.parseQueryString($(this));
 		
 		ns.spLoad(ns.lists.getByTitle($this.attr("list"))).then(function(list) {
-			url = ns.template("{url}?{child_column}={id}", $.extend($this, {
+			var url = ns.template("{url}?{child_column}={ID}", $.extend($this, {
 				url: list.get_defaultNewFormUrl(),
-				id : $this.ID,
 			}));
 			
-			// Wait for the iFrame to show up
+			// Monitor for the iFrame that we're going to show later
 			ns.waitFor("iframe.ms-dlgFrame").then(function(node) {
 				$(node).load(function() {
 					var $document = $(this.contentDocument);
@@ -90,12 +88,78 @@
 	};
 	
 	// --------------------------------------------------
+	// function_bulk_add
+	// --------------------------------------------------
+	ns.function_bulk_add = function(ev) {
+		// Don't let the browser handle the event
+		ev.preventDefault();
+		// Wrap 'this' and parse URI 
+		var $this = ns.parseQueryString($(this));
+		var fromList, fromItems=[], toList;
+		
+		// Show a loading indicator
+		var $toList = $(ns.template("table[summary^='{to}']", $this))
+				.parents("div[webpartid]")
+				.loading();
+		
+		// Load the from list
+		ns.spLoad(ns.lists.getByTitle($this.attr("from"))).then(function(list) {
+			fromList = list;
+			
+			// Load the from items
+			ns.spLoad(list.getItems(SP.CamlQuery.createAllItemsQuery())).then(function(items) {
+				for(var it = items.getEnumerator(); it.moveNext(); ) 
+					fromItems.push(it.get_current());
+			});
+		}).then(function() {
+			ns.spLoad(ns.lists.getByTitle($this.attr("to"))).then(function(list) {
+				toList = list;
+				var newItems = [];
+				var toItems = {};
+				
+				// Load the from items
+				ns.spLoad(toList.getItems(SP.CamlQuery.createAllItemsQuery())).then(function(items) {
+					// Create a hashmap of the items by id to track pre-existing items
+					for(var it = items.getEnumerator(), item=null; it.moveNext(), item=it.get_current(); ) 
+						if(item.get_item($this.attr("to-column")).get_lookupId() == $this.ID)
+							toItems[item.get_item($this.attr("from-column")).get_lookupId()] = item;
+					
+					$(fromItems).each(function(i, item) {
+						// Don't add pre-existing items
+						if(toItems[item.get_id()]) return;
+						var newItem = toList.addItem();
+						newItem.set_item($this.attr("from-column"), item.get_id());
+						newItem.set_item($this.attr("to-column"), $this.ID);
+						newItem.update();
+						newItems.push(newItem);
+						ns.context.load(newItem);
+					});
+					
+					ns.context.executeQueryAsync(function() {
+						$toList.find("#ManualRefresh").click();
+						$toList.loading("done");
+					});
+				});
+			});
+		});
+	};
+	
+	// --------------------------------------------------
+	// parseQueryString
+	// --------------------------------------------------
+	ns.parseQueryString = function($node) {
+		$node.prop("ownerDocument").location.href.replace(/\?(.*?)=(.*?)(&|$)/g, 
+			function(a,b,c) {$node[b] = c; });		
+		return $node;
+	};
+	
+	// --------------------------------------------------
 	// spLoad
 	// --------------------------------------------------
 	ns.spLoad = function(thingToLoad) {
 		var promise = new ns.Promise();
 		
-		ns.context.load(thingToLoad);
+		ns.context.load(thingToLoad); 
 		ns.context.executeQueryAsync(function() { promise.resolve(thingToLoad); });
 		
 		return promise;
@@ -148,7 +212,7 @@
 	};
 	
 	// --------------------------------------------------
-	// Promise
+	// Promise                                    [class]
 	// --------------------------------------------------
 	ns.Promise = (function() {
 		function Promise() {
@@ -175,6 +239,37 @@
 		
 		return Promise;
 	})();
+	
+	// --------------------------------------------------
+	// loading                                   [jQuery]
+	// --------------------------------------------------
+	$.fn.loading = function(status) {
+		var $text;
+		// Remove the old item
+		$($.data(this, "loadingDiv")).next().show().prev().remove();
+		// Create the new item
+		if(!status) {
+			$.data(this, "loadingDiv", $("<div>")
+				.insertBefore(this.hide())
+				.css({
+					backgroundColor: "#BBB",
+					color          : "white",
+					fontSize       : "14pt",
+					fontWeight     : "bold",
+					textAlign      : "center",
+					height         : this.height(),
+				})
+				.append($text = $("<div>")
+					.css({paddingTop: this.height()/2})
+					.text("Loading...")
+				)
+			);
+			// Shift the text up by half height
+			$text.css({paddingTop: parseInt($text.css("paddingTop"), 10) - $text.height()/2});
+		}
+		
+		return this;
+	};
 	
 	ns.initialize();
 })("topa-extensions");
