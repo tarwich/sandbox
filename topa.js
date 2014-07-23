@@ -16,6 +16,8 @@
 		
 		// Wait for jQuery and SP.ClientContext to be available
 		ns.waitFor(function() { return (window.jQuery && SP.ClientContext) ? jQuery : false; }).then(function($) {
+			// Add jQuery 'loading' plugin
+			$.fn.loading = ns.loading; 
 			// Get big SharePoint objects
 			ns.context = SP.ClientContext.get_current(); // context
 			ns.web     = ns.context.get_web();           // web
@@ -262,7 +264,7 @@
 	// --------------------------------------------------
 	// loading                                   [jQuery]
 	// --------------------------------------------------
-	$.fn.loading = function(status) {
+	ns.loading = function(status) {
 		var $text;
 		// Remove the old item
 		$($.data(this, "loadingDiv")).next().show().prev().remove();
