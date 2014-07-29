@@ -10,7 +10,7 @@
 	// --------------------------------------------------
 	ns.initialize = function() {
 		// Add jQuery to the document
-		if(!window["jQuery"]) document.head.appendChild(document.createElement("script")).src = "//ajax.googleapis.com/ajax/libs/jquery/1.6.0/jquery.min.js";
+		if(!window["jQuery"]) document.head.appendChild(document.createElement("script")).src = "//ajax.googleapis.com/ajax/libs/jquery/1.7.0/jquery.min.js";
 		// Load the ClientContext library
 		SP.SOD.executeFunc("sp.js", "SP.ClientContext");
 		
@@ -36,7 +36,7 @@
 					// Change the function from foo to function_foo
 					functionName = ["function_", $node.attr("function")].join("");
 					// Lookup (and call) the function in our namespace
-					$node.click((ns[functionName] || function() { 
+					$node.unbind("click").click((ns[functionName] || function() { 
 						console.warn(["Function '",functionName,"' not known"].join("")); 
 					}));
 				});
@@ -53,6 +53,10 @@
 	
 	// --------------------------------------------------
 	// function_add_child
+	// -------------------------------------------------- 
+	// caption      : The text to display in the title of the dialog
+	// child_column : The column in the child table that will link to this list
+	// list         : The name of the child list to display
 	// --------------------------------------------------
 	ns.function_add_child = function(ev) {
 		// Don't let the browser handle the event
@@ -60,7 +64,7 @@
 		// Wrap 'this' and inject data from the URI
 		var $this = ns.parseQueryString($(this));
 		
-		ns.spLoad(ns.lists.getByTitle($this.attr("list"))).then(function(list) {
+		ns.spLoad(ns.lists.getByTitle($this.attr("list")), "DefaultNewFormUrl").then(function(list) {
 			var url = ns.template("{url}?{child_column}={ID}", $.extend($this, {
 				url: list.get_defaultNewFormUrl(),
 			}));
@@ -110,6 +114,8 @@
 		}).then(function(fromItems) {
 			var fromColumn=$this.attr("from-column"), toColumn=$this.attr("to-column");
 			return new ns.Promise(function(resolve, reject) {
+				// Load the items in the destination list that pertain to the current ID 
+				// This is to build the filter to not-re-add these items
 				$SP().list($this.attr("to")).get({where:ns.template("{to-column}~={ID}", $this)}, resolve);
 			}).then(function(toItems) {
 				var currentItems = {}, fromColumn = $this.attr("from-column");
@@ -120,7 +126,7 @@
 				fromItems = $(fromItems).filter(function(i,item) {
 					return !currentItems[item.getAttribute("ID")];
 				});
-				return new Promise(function(resolve) {
+				return new ns.Promise(function(resolve) {
 					// Add all the new items to the list
 					$SP().list($this.attr("to")).add($(fromItems).map(function(i,item) {
 						var data = {};
@@ -148,10 +154,10 @@
 	// --------------------------------------------------
 	// spLoad
 	// --------------------------------------------------
-	ns.spLoad = function(thingToLoad) {
+	ns.spLoad = function(thingToLoad, parameters) {
 		var promise = new ns.Promise();
 		
-		ns.context.load(thingToLoad); 
+		ns.context.load.apply(ns.context, arguments); 
 		ns.context.executeQueryAsync(function() { promise.resolve(thingToLoad); });
 		
 		return promise;
@@ -286,7 +292,7 @@
 					.text("Loading...")
 				)
 				// Mute events for container
-				.on("mousedown mouseup click", function(ev) {ev.preventDefault(); ev.stopImmediatePropagation();})
+				.bind("mousedown mouseup click", function(ev) {ev.preventDefault(); ev.stopImmediatePropagation();})
 			);
 			// Shift the text up by half height
 			$text.css({paddingTop: parseInt($text.css("paddingTop"), 10) - $text.height()/2});
